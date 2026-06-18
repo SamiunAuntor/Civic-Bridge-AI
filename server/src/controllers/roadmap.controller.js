@@ -1,9 +1,15 @@
 const roadmapRepository = require("../repositories/roadmap.repository");
 
+const { verifyAssessmentOwnership, } = require("../services/ownership.service");
+
 const getRoadmap = async (req, res) => {
     try {
-        const { assessmentId } =
-            req.params;
+        const { assessmentId } = req.params;
+
+        await verifyAssessmentOwnership(
+            assessmentId,
+            req.dbUser.id
+        );
 
         const { data, error } =
             await roadmapRepository.getRoadmapByAssessmentId(
@@ -14,14 +20,14 @@ const getRoadmap = async (req, res) => {
             throw error;
         }
 
-        res.json({
+        return res.json({
             success: true,
             data,
         });
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message,
         });
