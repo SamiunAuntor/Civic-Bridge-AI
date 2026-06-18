@@ -2,10 +2,11 @@ const model = require("../../config/gemini");
 
 const { buildSimulationPrompt, } = require("../../prompts/simulation.prompt");
 
-const simulateDecision = async (situation, decision) => {
+const simulateDecision = async (situation, analysis, decision) => {
     const prompt =
         buildSimulationPrompt(
             situation,
+            analysis,
             decision
         );
 
