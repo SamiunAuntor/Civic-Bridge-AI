@@ -4,12 +4,13 @@ const riskRepository = require("../repositories/risk.repository");
 
 const simulationService = require("../services/simulation.service");
 
+const { verifyAssessmentOwnership, } = require("../services/ownership.service");
+
 const createSimulation = async (req, res) => {
     try {
-        const {
-            assessmentId,
-            decision,
-        } = req.body;
+        const { assessmentId, decision, } = req.body;
+
+        await verifyAssessmentOwnership(assessmentId, req.dbUser.id);
 
         const {
             data: assessment,
@@ -32,14 +33,14 @@ const createSimulation = async (req, res) => {
                 decision,
             });
 
-        res.json({
+        return res.json({
             success: true,
             data: result,
         });
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message,
         });

@@ -10,17 +10,25 @@ const verifyAssessmentOwnership = async (assessmentId, userId) => {
         );
 
     if (error || !assessment) {
-        throw new Error(
+        const err = new Error(
             "Assessment not found"
         );
+
+        err.statusCode = 404;
+
+        throw err;
     }
 
     if (
         assessment.user_id !== userId
     ) {
-        throw new Error(
+        const err = new Error(
             "Access denied"
         );
+
+        err.statusCode = 403;
+
+        throw err;
     }
 
     return assessment;
