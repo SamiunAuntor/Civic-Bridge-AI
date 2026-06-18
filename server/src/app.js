@@ -6,6 +6,7 @@ const assessmentRoutes = require("./routes/assessment.routes");
 const roadmapRoutes = require("./routes/roadmap.routes");
 const simulationRoutes = require("./routes/simulation.routes");
 const priorityRoutes = require("./routes/priority.routes");
+const resourceRoutes = require("./routes/resource.routes");
 
 const app = express();
 
@@ -17,5 +18,6 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/roadmaps", roadmapRoutes);
 app.use("/api/simulations", simulationRoutes);
 app.use("/api/priorities", priorityRoutes);
+app.use("/api/resources", resourceRoutes);
 
 module.exports = app;
