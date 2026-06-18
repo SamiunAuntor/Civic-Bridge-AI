@@ -8,6 +8,8 @@ const { saveRiskAssessment, } = require("./risk.service");
 
 const { createRoadmap, } = require("./roadmap.service");
 
+const { savePriorities, } = require("./priority.service");
+
 const createAssessment = async (userId, situation) => {
     // 1. Analyze situation using Gemini
     const analysis = await analyzeSituation(situation);
@@ -39,6 +41,11 @@ const createAssessment = async (userId, situation) => {
             situation,
             analysis
         );
+
+    await savePriorities(
+        data.id,
+        priorities.priorities
+    );
 
     // 5. Generate roadmap
     const roadmap =
