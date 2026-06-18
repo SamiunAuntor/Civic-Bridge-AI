@@ -8,6 +8,15 @@ const createAssessment = async (assessmentData) => {
         .single();
 };
 
+const getAssessmentById = async (assessmentId) => {
+    return await supabase
+        .from("assessments")
+        .select("*")
+        .eq("id", assessmentId)
+        .single();
+};
+
 module.exports = {
     createAssessment,
+    getAssessmentById
 };
