@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  --background: #181f35;
+  --foreground: #0b1c30;
+  --panel: #ffffff;
+  --surface: #ffffff;
+  --surface-strong: #edf3ff;
+  --border: #d9deea;
+  --muted-foreground: #71809b;
+  --primary: #173b72;
+  --primary-strong: #0f2d58;
+  --primary-foreground: #ffffff;
+  --secondary: #8fb8ff;
+  --secondary-foreground: #ffffff;
+  --danger: #bf4733;
+  --danger-soft: #fff1ed;
+  --teal: #8be8dc;
+  --teal-soft: #d8fbf6;
+  --shadow-soft: 0 10px 30px -20px rgba(23, 59, 114, 0.35);
+  --shadow-panel: 0 24px 60px -32px rgba(5, 17, 43, 0.48);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-panel: var(--shadow-panel);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+  min-height: 100vh;
+}
+
+a,
+button {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+::selection {
+  background: rgba(15, 76, 129, 0.2);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.font-heading {
+  font-family: var(--font-heading), sans-serif;
+}
+
+.scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(66, 71, 79, 0.4) transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  background: rgba(66, 71, 79, 0.35);
+  border-radius: 999px;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}

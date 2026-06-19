@@ -1,3 +1,7 @@
 node_modules
 .env
 serviceAccountKey.json
+server/.env
+server/serviceAccountKey.json
+client/.env
+client/.env.local
