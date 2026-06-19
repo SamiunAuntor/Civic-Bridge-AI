@@ -138,9 +138,9 @@ export const faqItems: LandingFaqItem[] = [
       "We protect user data with encrypted transport, restricted access controls, and confidentiality-first workflows designed for sensitive crisis support.",
   },
   {
-    question: "Can I use CivicBridge AI for legal advice?",
+    question: "Can I use Civic Bridge AI for legal advice?",
     answer:
-      "CivicBridge AI helps organize urgent next steps and relevant resources, but it does not replace advice from a licensed legal professional.",
+      "Civic Bridge AI helps organize urgent next steps and relevant resources, but it does not replace advice from a licensed legal professional.",
   },
   {
     question: "Is there a cost for using the platform?",

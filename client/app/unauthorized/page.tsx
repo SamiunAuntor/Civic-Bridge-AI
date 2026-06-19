@@ -5,7 +5,7 @@ export default function UnauthorizedPage() {
   return (
     <UnauthorizedState
       title="You need to sign in first"
-      message="This area is protected and requires a Firebase-authenticated session."
+      message="Please sign in to continue to your personal Civic Bridge AI workspace."
       action={
         <Link
           href="/login"

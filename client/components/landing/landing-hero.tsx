@@ -11,7 +11,7 @@ import landingBanner from "@/assets/landing-banner.png";
 
 export function LandingHero() {
   return (
-    <section className="mx-auto grid w-full max-w-[1180px] gap-10 px-6 pb-[70px] pt-[64px] lg:grid-cols-[1.02fr_0.98fr] lg:px-2">
+    <section className="mx-auto grid w-11/12 max-w-[1440px] gap-10 pb-[70px] pt-[64px] lg:grid-cols-[1.02fr_0.98fr]">
       <div className="flex flex-col justify-center">
         <div className="mb-8 inline-flex w-fit items-center gap-2 rounded-full border border-[#e5e9f2] bg-white px-3 py-1.5 text-[10px] font-semibold text-[#7b8ca8] shadow-[0_2px_12px_rgba(26,54,93,0.04)]">
           <ShieldCheck
@@ -30,7 +30,7 @@ export function LandingHero() {
         </h1>
 
         <p className="mt-7 max-w-[560px] text-[18px] leading-[1.85] text-[#62728f]">
-          CivicBridge AI turns complex life crises into clear, prioritized
+          Civic Bridge AI turns complex life crises into clear, prioritized
           action plans. Navigate uncertainty with institutional-grade
           intelligence and human-centered design.
         </p>

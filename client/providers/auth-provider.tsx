@@ -40,7 +40,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 function firebaseUnavailableError() {
   return new Error(
-    "Firebase client variables are missing. Add the NEXT_PUBLIC_FIREBASE_* values before using auth.",
+    "Sign-in is temporarily unavailable right now. Please try again shortly.",
   );
 }
 
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileError(
           error instanceof Error
             ? error.message
-            : "Unable to bootstrap the authenticated user.",
+            : "We couldn't load your account details right now.",
         );
       });
     } finally {

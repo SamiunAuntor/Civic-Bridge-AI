@@ -7,7 +7,7 @@ import { processSteps } from "@/components/landing/data";
 export function LandingProcess() {
   return (
     <section className="bg-[#f7f8fc]">
-      <div className="mx-auto grid w-full max-w-[1180px] gap-10 px-6 py-[78px] lg:grid-cols-[0.9fr_1.1fr] lg:px-2">
+      <div className="mx-auto grid w-11/12 max-w-[1440px] gap-10 py-[78px] lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <h2 className="font-heading text-[38px] font-bold tracking-[-0.03em] text-[#173b72]">
             A Clear Path Forward

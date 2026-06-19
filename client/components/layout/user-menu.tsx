@@ -3,6 +3,7 @@
 import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { confirmDialog, notify } from "@/lib/feedback";
 
 export function UserMenu() {
   const { profile, firebaseUser, signOutUser } = useAuth();
@@ -28,14 +29,14 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex items-center gap-3 rounded-xl border border-[#d9deea] bg-white px-3 py-2 text-left text-sm text-[#102a55]"
+        className="inline-flex items-center gap-3 rounded-[18px] border border-[#d9deea] bg-white px-4 py-3 text-left text-sm text-[#102a55] shadow-[0_8px_20px_-18px_rgba(17,43,89,0.2)]"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf3ff] text-[#173b72]">
+        <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#eef3ff] text-[#173b72]">
           <UserRound className="h-5 w-5" />
         </div>
         <div className="hidden max-w-[160px] md:block">
-          <p className="truncate font-semibold">{name}</p>
-          <p className="truncate text-xs text-[#7c879e]">{email}</p>
+          <p className="truncate font-heading text-[17px] font-bold">{name}</p>
+          <p className="truncate text-[13px] text-[#7c879e]">{email}</p>
         </div>
         <ChevronDown className="h-4 w-4 text-[#7c879e]" />
       </button>
@@ -50,7 +51,26 @@ export function UserMenu() {
             type="button"
             onClick={async () => {
               setOpen(false);
-              await signOutUser();
+              const result = await confirmDialog({
+                title: "Sign out of Civic Bridge AI?",
+                text: "You can sign back in at any time to continue where you left off.",
+                confirmButtonText: "Sign Out",
+              });
+
+              if (!result.isConfirmed) {
+                return;
+              }
+
+              try {
+                await signOutUser();
+                notify.success("You have been signed out.");
+              } catch (error) {
+                notify.error(
+                  error instanceof Error
+                    ? error.message
+                    : "We couldn't sign you out right now.",
+                );
+              }
             }}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#173b72] hover:bg-[#eef4ff]"
           >

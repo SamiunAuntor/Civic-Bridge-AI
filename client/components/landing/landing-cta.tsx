@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 export function LandingCta() {
   return (
     <section className="bg-[#f7f8fc] pb-[76px]">
-      <div className="mx-auto w-full max-w-[1180px] px-6 lg:px-2">
+      <div className="mx-auto w-11/12 max-w-[1440px]">
         <div className="rounded-[18px] bg-[#173b72] px-8 py-14 text-center shadow-[0_20px_40px_-24px_rgba(23,59,114,0.55)]">
           <h2 className="font-heading text-[38px] font-bold tracking-[-0.03em] text-white">
             Take the first step toward stability today.

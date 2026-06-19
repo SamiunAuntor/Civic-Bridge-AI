@@ -5,7 +5,7 @@ import { faqItems } from "@/components/landing/data";
 export function LandingFaq() {
   return (
     <section className="bg-[#f7f8fc]">
-      <div className="mx-auto w-full max-w-[980px] px-6 py-[72px] lg:px-2">
+      <div className="mx-auto w-11/12 max-w-[1440px] py-[72px]">
         <div className="text-center">
           <h2 className="font-heading text-[36px] font-bold tracking-[-0.03em] text-[#173b72]">
             Frequently Asked Questions

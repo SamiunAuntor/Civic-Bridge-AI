@@ -4,11 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   AlertTriangle,
+  Cog,
+  FolderOpen,
+  House,
   LayoutDashboard,
-  LineChart,
   NotebookPen,
-  Sparkles,
-  Wrench,
+  Route,
+  TrendingUp,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -18,12 +20,10 @@ import { cn } from "@/lib/utils";
 const mainItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/assessments/new", label: "New Assessment", icon: NotebookPen },
-];
-
-const placeholderItems = [
-  { label: "Roadmap", icon: Sparkles },
-  { label: "Resources", icon: LineChart },
-  { label: "Settings", icon: Wrench },
+  { href: "/roadmap", label: "Roadmap", icon: Route },
+  { href: "/resources", label: "Resources", icon: FolderOpen },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/settings", label: "Settings", icon: Cog },
 ];
 
 export function Sidebar() {
@@ -36,13 +36,13 @@ export function Sidebar() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#173b72] text-white">
             <Image
               src={logo}
-              alt="CivicBridge AI logo"
+              alt="Civic Bridge AI logo"
               className="h-[26px] w-[26px] object-contain"
             />
           </div>
           <div>
             <p className="font-heading text-[1.15rem] font-bold leading-tight text-[#173b72]">
-              CivicBridge AI
+              Civic Bridge AI
             </p>
             <p className="text-xs text-[#7c879e]">
               Crisis Support System
@@ -82,31 +82,15 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="mt-6 space-y-2">
-          {placeholderItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <div
-                key={item.label}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[#7c879e]"
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-                <span className="ml-auto rounded-full bg-[#f1f5fc] px-2 py-1 text-[11px] uppercase tracking-[0.12em]">
-                  Soon
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
         <div className="mt-auto border-t border-[#e6ebf4] px-2 pt-5">
           <div className="rounded-xl px-2 py-3 text-sm text-[#49556d]">
-            <p className="font-semibold text-[#173b72]">Foundation active</p>
-            <p className="mt-1 leading-6 text-[#7c879e]">
-              Shared auth, routing, and API bootstrap are wired for the Stitch
-              screens.
+            <div className="flex items-center gap-2 text-[#173b72]">
+              <House className="h-4 w-4" />
+              <p className="font-semibold">Your workspace is active</p>
+            </div>
+            <p className="mt-2 leading-6 text-[#7c879e]">
+              Your latest assessment, action plan, resources, and progress are
+              available across the app.
             </p>
           </div>
         </div>

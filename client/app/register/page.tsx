@@ -1,16 +1,16 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Eye, LoaderCircle } from "lucide-react";
+import { ArrowRight, Eye, Globe, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import logo from "@/assets/logo.png";
+import { AuthSplitShell } from "@/components/auth/auth-split-shell";
+import { PublicSiteShell } from "@/components/landing/public-site-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { notify } from "@/lib/feedback";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,13 +28,15 @@ export default function RegisterPage() {
 
     try {
       await signUp(email, password, fullName);
+      notify.success("Your account has been created.");
       router.push("/dashboard");
     } catch (submitError) {
-      setError(
+      const message =
         submitError instanceof Error
           ? submitError.message
-          : "Unable to create your account right now.",
-      );
+          : "We couldn't create your account right now.";
+      setError(message);
+      notify.error(message);
     }
   }
 
@@ -42,157 +45,139 @@ export default function RegisterPage() {
 
     try {
       await signInWithGoogle();
+      notify.success("Your account is ready.");
       router.push("/dashboard");
     } catch (signUpError) {
-      setError(
+      const message =
         signUpError instanceof Error
           ? signUpError.message
-          : "Google sign-up did not complete.",
-      );
+          : "Google sign-up did not complete.";
+      setError(message);
+      notify.error(message);
     }
   }
 
   return (
-    <main className="min-h-screen md:grid md:grid-cols-2">
-      <section className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
-        <div className="w-full max-w-md">
-          <div className="mb-8 space-y-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
-              <Image
-                src={logo}
-                alt="CivicBridge AI logo"
-                className="h-8 w-8 object-contain"
-                priority
+    <PublicSiteShell mainClassName="min-h-[calc(100vh-86px-153px)]">
+      <AuthSplitShell
+        title="Begin Your Journey"
+        subtitle="Create an account to access crisis support expertise and stable roadmaps tailored for you."
+        primaryAction={
+          <Button
+            type="submit"
+            form="register-form"
+            className="h-[54px] w-full rounded-[10px] bg-[#2f4f87] text-[15px] font-semibold text-white hover:bg-[#294779]"
+            disabled={authLoading || !acceptedTerms}
+          >
+            {authLoading ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowRight className="h-4 w-4" />
+            )}
+            Create Account
+          </Button>
+        }
+        socialAction={
+          <Button
+            type="button"
+            variant="outline"
+            className="h-[52px] w-full rounded-[10px] border border-[#d4dbe8] bg-white text-[15px] font-medium text-[#173b72] hover:bg-[#f6f8fc]"
+            disabled={authLoading || !isFirebaseReady}
+            onClick={handleGoogleSignUp}
+          >
+            <Globe className="h-4 w-4" />
+            Sign up with Google
+          </Button>
+        }
+        footerPrompt="Already have an account?"
+        footerLink="/login"
+        footerLabel="Sign In"
+        agreement={
+          <label className="flex items-center gap-2.5 text-[12px] text-[#5f6f8a]">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              className="h-4 w-4 rounded border border-[#cad4e3]"
+            />
+            <span>
+              I agree to the{" "}
+              <Link href="#" className="font-medium text-[#173b72]">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="#" className="font-medium text-[#173b72]">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+        }
+      >
+        <form id="register-form" className="space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label className="mb-2.5 block text-[13px] font-semibold text-[#173b72]">
+              Full Name
+            </label>
+            <Input
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="Enter your full name"
+              autoComplete="name"
+              className="h-[52px] rounded-[10px] border-[#cad4e3] bg-white px-4 text-[15px] text-[#173b72] placeholder:text-[#8a97ab]"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2.5 block text-[13px] font-semibold text-[#173b72]">
+              Email Address
+            </label>
+            <Input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              placeholder="name@example.com"
+              autoComplete="email"
+              className="h-[52px] rounded-[10px] border-[#cad4e3] bg-white px-4 text-[15px] text-[#173b72] placeholder:text-[#8a97ab]"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2.5 block text-[13px] font-semibold text-[#173b72]">
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type={showPassword ? "text" : "password"}
+                placeholder="Create a strong password"
+                autoComplete="new-password"
+                className="h-[52px] rounded-[10px] border-[#cad4e3] bg-white px-4 pr-11 text-[15px] text-[#173b72] placeholder:text-[#8a97ab]"
               />
-            </div>
-            <div>
-              <h1 className="font-heading text-4xl font-bold text-primary">
-                Begin your journey
-              </h1>
-              <p className="mt-2 text-muted-foreground">
-                Create an account to access guided assessments and structured
-                next-step planning.
-              </p>
-            </div>
-          </div>
-
-          <Card className="border-border/70 bg-panel/95 p-6">
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Full Name
-                </label>
-                <Input
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  placeholder="Enter your full name"
-                  autoComplete="name"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Email Address
-                </label>
-                <Input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type="email"
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-foreground">
-                  Password
-                </label>
-                <div className="relative">
-                  <Input
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
-                    autoComplete="new-password"
-                    className="pr-11"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((current) => !current)}
-                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-primary"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {error ? (
-                <div className="rounded-2xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger">
-                  {error}
-                </div>
-              ) : null}
-
-              {!isFirebaseReady ? (
-                <div className="rounded-2xl border border-secondary/20 bg-surface px-4 py-3 text-sm text-muted-foreground">
-                  Add the public Firebase values from `.env.example` before
-                  using account creation.
-                </div>
-              ) : null}
-
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRight className="h-4 w-4" />
-                )}
-                Create Account
-              </Button>
-
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="w-full"
-                disabled={authLoading || !isFirebaseReady}
-                onClick={handleGoogleSignUp}
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute inset-y-0 right-3 flex items-center text-[#4d607f] hover:text-[#173b72]"
               >
-                Sign Up With Google
-              </Button>
-            </form>
-          </Card>
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-primary">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </section>
-
-      <aside className="relative hidden overflow-hidden bg-primary md:block">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDwmJzd6vfqF4eUtkAhDhBs_hA0-nr6fFy32BQCH2kZ9-ANzBPBJ7x_9Wxi7nQigbu3SzYLFpVkUZaF5oBtm5DymFHZVOFTmTkaA-7_r9G6mpIXQbLa_v-fPnZU05hmSM3BP6qg4O7RuJLU5EpWwUnYPauD3YDCC5_1Ia-qBE4xtr0_RLb6H-NXEbX-HrxsLus5Fn6wG2B0z_PR6ofJ9Ic6jsD1_tn_zmXb_kHWOEDyfX2FHWgf8WOQBFxxlQ0cCi6SdlgpeGqRtc')",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#07172d] via-primary/70 to-primary/20" />
-        <div className="relative flex h-full items-start p-12 text-primary-foreground">
-          <div className="mt-8 max-w-md rounded-[28px] border border-white/15 bg-white/10 p-6 shadow-soft backdrop-blur">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/75">
-              Current Status
-            </p>
-            <h2 className="mt-5 font-heading text-5xl font-bold leading-tight">
-              Pathway active
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-white/85">
-              Build a secure account foundation now so the higher-fidelity
-              Stitch screens can plug into real auth and routing next.
-            </p>
+                <Eye className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      </aside>
-    </main>
+
+          {error ? (
+            <div className="rounded-[12px] border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger">
+              {error}
+            </div>
+          ) : null}
+
+          {!isFirebaseReady ? (
+            <div className="rounded-[12px] border border-secondary/20 bg-surface px-4 py-3 text-sm text-muted-foreground">
+              Account creation is temporarily unavailable. Please try again shortly.
+            </div>
+          ) : null}
+        </form>
+      </AuthSplitShell>
+    </PublicSiteShell>
   );
 }

@@ -3,7 +3,7 @@ import { challengeCards } from "@/components/landing/data";
 export function LandingChallenges() {
   return (
     <section className="border-t border-[#eef1f6] bg-white">
-      <div className="mx-auto w-full max-w-[1180px] px-6 py-[70px] lg:px-2">
+      <div className="mx-auto w-11/12 max-w-[1440px] py-[70px]">
         <div className="text-center">
           <h2 className="font-heading text-[36px] font-bold tracking-[-0.03em] text-[#173b72]">
             Addressing Multi-Dimensional Challenges

@@ -43,7 +43,7 @@ const createAssessment = async (userId, situation) => {
         );
 
     await savePriorities(
-        data.id,
+        assessment.id,
         priorities.priorities
     );
 

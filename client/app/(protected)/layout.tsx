@@ -23,21 +23,21 @@ export default function ProtectedLayout({
   }, [pathname, router, status]);
 
   if (status === "loading") {
-    return <LoadingState title="Checking your session" fullScreen />;
+    return <LoadingState title="Preparing your space" fullScreen />;
   }
 
   if (!isFirebaseReady) {
     return (
       <UnauthorizedState
-        title="Firebase client configuration is missing"
-        message="Add the public Firebase values in client/.env.example before using protected routes."
+        title="Sign-in is unavailable right now"
+        message="This secure area will open as soon as account access is available again."
         fullScreen
       />
     );
   }
 
   if (status !== "authenticated") {
-    return <LoadingState title="Redirecting to sign in" fullScreen />;
+    return <LoadingState title="Taking you to sign in" fullScreen />;
   }
 
   return <AppShell>{children}</AppShell>;

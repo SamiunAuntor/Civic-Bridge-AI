@@ -3,16 +3,19 @@
 import { Menu } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopHeader } from "@/components/layout/top-header";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const isDashboardRoute = pathname === "/dashboard";
 
   return (
-    <div className="min-h-screen bg-[#171d31] px-3 py-3 md:px-5 md:py-5">
-      <div className="mx-auto flex min-h-[calc(100vh-24px)] max-w-[1820px] overflow-hidden rounded-[34px] border border-[#3b4560] bg-[#f6f8fd] md:min-h-[calc(100vh-40px)]">
+    <div className="min-h-screen bg-[#171d31]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] overflow-hidden bg-[#f5f7fd]">
         <Sidebar />
 
         <div className="flex min-h-full flex-1 flex-col overflow-hidden">
@@ -33,9 +36,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28 }}
-            className="scrollbar-subtle flex-1 overflow-y-auto bg-[#f6f8fd] px-4 pb-24 pt-5 md:px-5 md:pb-6"
+            className="scrollbar-subtle flex-1 overflow-y-auto bg-[#f5f7fd] px-4 pb-24 pt-5 md:px-6 md:pb-8"
           >
-            {children}
+            {isDashboardRoute ? (
+              children
+            ) : (
+              <div className="mx-auto w-11/12 max-w-[1440px]">{children}</div>
+            )}
           </motion.main>
         </div>
       </div>

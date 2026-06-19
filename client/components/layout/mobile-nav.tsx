@@ -2,7 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Home, LayoutDashboard, LogOut, X } from "lucide-react";
+import {
+  Cog,
+  FolderOpen,
+  Home,
+  LayoutDashboard,
+  LogOut,
+  Route,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import logo from "@/assets/logo.png";
@@ -11,7 +20,11 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/assessments/new", label: "Assessment", icon: Home },
+  { href: "/assessments/new", label: "New Assessment", icon: Home },
+  { href: "/roadmap", label: "Roadmap", icon: Route },
+  { href: "/resources", label: "Resources", icon: FolderOpen },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/settings", label: "Settings", icon: Cog },
 ];
 
 export function MobileNav({
@@ -42,13 +55,13 @@ export function MobileNav({
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <Image
                 src={logo}
-                alt="CivicBridge AI logo"
+                alt="Civic Bridge AI logo"
                 className="h-7 w-7 object-contain"
               />
             </div>
             <div>
               <p className="font-heading text-[1.05rem] font-bold leading-tight text-primary">
-                CivicBridge AI
+                Civic Bridge AI
               </p>
               <p className="text-sm text-muted-foreground">Support System</p>
             </div>

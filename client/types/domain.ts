@@ -55,3 +55,9 @@ export interface Simulation {
   recommendedAction?: string;
   recommended_action?: string;
 }
+
+export interface ResourceRecommendation {
+  name: string;
+  reason: string;
+  priority: string;
+}

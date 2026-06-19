@@ -1,5 +1,5 @@
 import { LoadingState } from "@/components/ui/loading-state";
 
 export default function Loading() {
-  return <LoadingState title="Loading CivicBridge AI" fullScreen />;
+  return <LoadingState title="Loading Civic Bridge AI" fullScreen />;
 }

@@ -3,7 +3,7 @@ import { securityFeatures } from "@/components/landing/data";
 export function LandingSecurity() {
   return (
     <section className="bg-[#eaf1ff]">
-      <div className="mx-auto w-full max-w-[1180px] px-6 py-[76px] lg:px-2">
+      <div className="mx-auto w-11/12 max-w-[1440px] py-[76px]">
         <div className="text-center">
           <h2 className="font-heading text-[34px] font-bold tracking-[-0.03em] text-[#173b72] sm:text-[36px]">
             Institutional-Grade Security
@@ -14,7 +14,7 @@ export function LandingSecurity() {
           </p>
         </div>
 
-        <div className="mx-auto mt-12 grid max-w-[1040px] gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid w-full gap-4 md:grid-cols-2 lg:grid-cols-4">
           {securityFeatures.map((feature) => {
             const Icon = feature.icon;
 

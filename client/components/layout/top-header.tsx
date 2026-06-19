@@ -6,11 +6,27 @@ import { UserMenu } from "@/components/layout/user-menu";
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
     title: "Overview",
-    subtitle: "Your current stability foundation and protected app shell.",
+    subtitle: "Here is your current stability summary and active tasks.",
   },
   "/assessments/new": {
     title: "New Assessment",
-    subtitle: "Structured intake form wired to the real backend contract.",
+    subtitle: "Describe the situation and generate a real support plan.",
+  },
+  "/roadmap": {
+    title: "Roadmap",
+    subtitle: "Review the generated next-step recovery plan.",
+  },
+  "/resources": {
+    title: "Resources",
+    subtitle: "Matched support resources based on your latest assessment.",
+  },
+  "/progress": {
+    title: "Progress",
+    subtitle: "Track simulations and current recovery momentum.",
+  },
+  "/settings": {
+    title: "Settings",
+    subtitle: "View your Civic Bridge AI profile and account details.",
   },
 };
 
@@ -23,8 +39,8 @@ export function TopHeader({
   const routeMeta = Object.entries(routeTitles).find(([route]) =>
     pathname.startsWith(route),
   )?.[1] ?? {
-    title: "CivicBridge AI",
-    subtitle: "Frontend foundation",
+    title: "Civic Bridge AI",
+    subtitle: "Personalized support planning and guided next steps.",
   };
 
   return (
