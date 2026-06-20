@@ -6,3 +6,4 @@ server/.env
 server/serviceAccountKey.json
 client/.env
 client/.env.local
+server/.vercel
