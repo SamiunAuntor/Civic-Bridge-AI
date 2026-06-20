@@ -81,17 +81,7 @@ export function AuthSplitShell({
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(240,244,252,0.14)_0%,rgba(24,46,85,0.42)_58%,rgba(20,41,77,0.84)_100%)]" />
 
-        <div className="relative flex h-full items-end p-10">
-          <div className="max-w-[380px]">
-            <h2 className="font-heading text-[54px] font-bold leading-[1.02] tracking-[-0.05em] text-white">
-              Your journey to stability starts here.
-            </h2>
-            <p className="mt-6 text-[18px] leading-[1.9] text-white/86">
-              Civic Bridge AI provides the tools and expert guidance to navigate
-              life&apos;s toughest transitions with confidence and clarity.
-            </p>
-          </div>
-        </div>
+        <div className="relative h-full" />
       </aside>
     </div>
   );

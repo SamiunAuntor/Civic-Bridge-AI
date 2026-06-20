@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { UserMenu } from "@/components/layout/user-menu";
 
 const routeTitles: Array<{
   route: string;
@@ -10,8 +9,8 @@ const routeTitles: Array<{
 }> = [
   {
     route: "/cases/",
-    title: "Case Workspace",
-    subtitle: "Work one case across summary, tasks, resources, progress, and notes.",
+    title: "Case Details",
+    subtitle: "Review one case clearly across summary, actions, resources, and updates.",
   },
   {
     route: "/dashboard",
@@ -27,16 +26,6 @@ const routeTitles: Array<{
     route: "/cases",
     title: "Cases",
     subtitle: "Manage active, resolved, and archived case workspaces.",
-  },
-  {
-    route: "/roadmap",
-    title: "Roadmap",
-    subtitle: "Review the selected case action plan and update next steps.",
-  },
-  {
-    route: "/resources",
-    title: "Resources",
-    subtitle: "Review matched support options and tracked case outreach.",
   },
   {
     route: "/progress",
@@ -63,20 +52,15 @@ export function TopHeader({
 
   return (
     <header className="border-b border-[#d9deea] bg-[#fdfdff] px-4 py-4 md:px-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
         <div className="flex min-w-0 items-center gap-3">
           {menuButton}
           <div className="min-w-0">
             <h1 className="truncate font-heading text-[2rem] font-bold text-[#0d3366]">
               {routeMeta.title}
             </h1>
-            <p className="truncate text-sm text-[#7c879e]">
-              {routeMeta.subtitle}
-            </p>
           </div>
         </div>
-
-        <UserMenu />
       </div>
     </header>
   );

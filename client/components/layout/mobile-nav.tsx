@@ -50,7 +50,7 @@ export function MobileNav({
         )}
       >
         <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href="/" onClick={onClose} className="flex items-center gap-3">
             <Image
               src={logo}
               alt="Civic Bridge AI logo"
@@ -62,7 +62,7 @@ export function MobileNav({
               </p>
               <p className="text-sm text-muted-foreground">Support System</p>
             </div>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={onClose}

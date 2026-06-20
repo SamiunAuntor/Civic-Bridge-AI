@@ -27,6 +27,7 @@ function buildAssessmentInput(situation, intakeProfile) {
             : "Not specified";
 
     const structuredLines = [
+        ["Case topic", intakeProfile.topic],
         ["Primary concerns", concernList],
         ["Time pressure", intakeProfile.timePressure],
         ["Housing status", intakeProfile.housingStatus],
@@ -54,6 +55,77 @@ async function cleanupAssessmentWrite(assessmentId) {
     ]);
 
     await assessmentRepository.deleteAssessmentById(assessmentId);
+}
+
+async function carryForwardRoadmapProgress(previousAssessmentId, nextAssessmentId) {
+    const [
+        { data: previousRoadmap, error: previousRoadmapError },
+        { data: nextRoadmap, error: nextRoadmapError },
+    ] = await Promise.all([
+        roadmapRepository.getRoadmapByAssessmentId(previousAssessmentId),
+        roadmapRepository.getRoadmapByAssessmentId(nextAssessmentId),
+    ]);
+
+    if (previousRoadmapError) {
+        throw previousRoadmapError;
+    }
+
+    if (nextRoadmapError) {
+        throw nextRoadmapError;
+    }
+
+    const previousItems = previousRoadmap || [];
+    const nextItems = nextRoadmap || [];
+    const patches = nextItems
+        .map((item, index) => {
+            const previousItem = previousItems[index];
+
+            if (!item?.id || !previousItem) {
+                return null;
+            }
+
+            const previousStatus = previousItem.status || "NOT_STARTED";
+            const patch = {};
+
+            if (previousStatus !== "NOT_STARTED") {
+                patch.status = previousStatus;
+                patch.started_at = previousItem.started_at || new Date().toISOString();
+                patch.completed_at =
+                    previousStatus === "COMPLETED"
+                        ? previousItem.completed_at || new Date().toISOString()
+                        : null;
+            }
+
+            if (previousItem.user_note) {
+                patch.user_note = previousItem.user_note;
+            }
+
+            if (previousItem.outcome) {
+                patch.outcome = previousItem.outcome;
+            }
+
+            if (!Object.keys(patch).length) {
+                return null;
+            }
+
+            patch.updated_at = new Date().toISOString();
+
+            return roadmapRepository.updateRoadmapTask(item.id, patch);
+        })
+        .filter(Boolean);
+
+    if (patches.length) {
+        await Promise.all(patches);
+    }
+
+    const { data: carriedRoadmap, error: carriedRoadmapError } =
+        await roadmapRepository.getRoadmapByAssessmentId(nextAssessmentId);
+
+    if (carriedRoadmapError) {
+        throw carriedRoadmapError;
+    }
+
+    return carriedRoadmap || [];
 }
 
 async function buildAssessmentSnapshot({
@@ -99,13 +171,30 @@ async function buildAssessmentSnapshot({
             priorities.priorities
         );
 
-        const roadmap =
-            await createRoadmap(
-                assessment.id,
-                assessmentInput,
-                analysis,
-                priorities.priorities
-            );
+        await createRoadmap(
+            assessment.id,
+            assessmentInput,
+            analysis,
+            priorities.priorities
+        );
+
+        const { data: persistedRoadmap, error: persistedRoadmapError } =
+            await roadmapRepository.getRoadmapByAssessmentId(assessment.id);
+
+        if (persistedRoadmapError) {
+            throw persistedRoadmapError;
+        }
+
+        const roadmap = previousAssessmentId
+            ? {
+                roadmap: await carryForwardRoadmapProgress(
+                    previousAssessmentId,
+                    assessment.id
+                ),
+            }
+            : {
+                roadmap: persistedRoadmap || [],
+            };
 
         return {
             assessment,

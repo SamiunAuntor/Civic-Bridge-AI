@@ -29,12 +29,12 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex items-center gap-3 rounded-[18px] border border-[#d9deea] bg-white px-4 py-3 text-left text-sm text-[#102a55] shadow-[0_8px_20px_-18px_rgba(17,43,89,0.2)]"
+        className="flex w-full items-center gap-3 rounded-[18px] border border-[#d9deea] bg-white px-4 py-3 text-left text-sm text-[#102a55] shadow-[0_8px_20px_-18px_rgba(17,43,89,0.2)]"
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#eef3ff] text-[#173b72]">
           <UserRound className="h-5 w-5" />
         </div>
-        <div className="hidden max-w-[160px] md:block">
+        <div className="min-w-0 flex-1">
           <p className="truncate font-heading text-[17px] font-bold">{name}</p>
           <p className="truncate text-[13px] text-[#7c879e]">{email}</p>
         </div>
@@ -42,7 +42,7 @@ export function UserMenu() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+10px)] z-20 w-64 rounded-2xl border border-[#d9deea] bg-white p-2 shadow-[0_12px_34px_-18px_rgba(23,59,114,0.35)]">
+        <div className="absolute bottom-[calc(100%+10px)] left-0 z-20 w-full min-w-[260px] rounded-2xl border border-[#d9deea] bg-white p-2 shadow-[0_12px_34px_-18px_rgba(23,59,114,0.35)]">
           <div className="rounded-xl px-3 py-3">
             <p className="font-semibold text-[#102a55]">{name}</p>
             <p className="mt-1 text-sm text-[#7c879e]">{email}</p>

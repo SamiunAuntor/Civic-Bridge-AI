@@ -11,6 +11,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import logo from "@/assets/logo.png";
+import { UserMenu } from "@/components/layout/user-menu";
 import { frontendFeatures } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +28,9 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-[260px] shrink-0 flex-col overflow-hidden border-r border-[#d9deea] bg-[#fdfdff] md:flex">
+    <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-[#d9deea] bg-[#fdfdff] md:flex">
       <div className="px-6 py-6">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <Image
             src={logo}
             alt="Civic Bridge AI logo"
@@ -43,7 +44,7 @@ export function Sidebar() {
               Crisis Support System
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="flex flex-1 flex-col px-4 py-4">
@@ -69,6 +70,10 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        <div className="mt-auto border-t border-[#d9deea] px-2 pt-6">
+          <UserMenu />
+        </div>
       </div>
     </aside>
   );

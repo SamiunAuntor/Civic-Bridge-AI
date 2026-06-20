@@ -11,7 +11,9 @@ const getRoadmapByAssessmentId = async (assessmentId) => {
     return await supabase
         .from("roadmaps")
         .select("*")
-        .eq("assessment_id", assessmentId);
+        .eq("assessment_id", assessmentId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
 };
 
 const deleteRoadmapByAssessmentId = async (assessmentId) => {

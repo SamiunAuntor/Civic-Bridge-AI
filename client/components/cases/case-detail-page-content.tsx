@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
-import { Archive, ArrowRight, Save, Sparkles, CheckCircle2 } from "lucide-react";
+import {
+  Archive,
+  ArrowLeft,
+  CheckCircle2,
+  Edit3,
+  FileText,
+  Save,
+  ShieldPlus,
+} from "lucide-react";
 
+import { CaseRoadmapFlow } from "@/components/cases/case-roadmap-flow";
 import { CaseStatusBadge } from "@/components/cases/case-status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,12 +23,11 @@ import { frontendFeatures } from "@/lib/features";
 import { fetchCaseDetail, updateCase } from "@/services/case-service";
 import { confirmDialog, notify } from "@/lib/feedback";
 import { createReassessment } from "@/services/reassessment-service";
-import { createTimelineNote, fetchCaseTimeline } from "@/services/timeline-service";
+import { fetchRecommendedResources } from "@/services/resource-service";
 import type {
   CaseRecord,
   CaseWorkspacePayload,
   ReassessmentComparison,
-  TimelineEvent,
 } from "@/types/domain";
 
 function formatDate(value?: string | null) {
@@ -32,6 +40,53 @@ function formatDate(value?: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function truncateText(value?: string | null, maxLength = 180) {
+  if (!value) {
+    return "";
+  }
+
+  const cleaned = value.replace(/\s+/g, " ").trim();
+
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+
+  return `${cleaned.slice(0, maxLength).trimEnd()}...`;
+}
+
+function riskToneClass(value?: string | null) {
+  switch (value) {
+    case "HIGH":
+      return "border-[#f3d1cb] bg-[#fff5f2] text-[#bf4a34]";
+    case "MEDIUM":
+      return "border-[#f3e4b8] bg-[#fffaf0] text-[#9a6a00]";
+    case "LOW":
+      return "border-[#d7ede4] bg-[#f1fbf6] text-[#2c7d5b]";
+    default:
+      return "border-[#d9deea] bg-[#f7f9fe] text-[#62728f]";
+  }
+}
+
+function stabilityToneClass(score?: number | null) {
+  if (typeof score !== "number") {
+    return "border-[#d9deea] bg-[#f7f9fe] text-[#62728f]";
+  }
+
+  if (score < 40) {
+    return "border-[#f3d1cb] bg-[#fff5f2] text-[#bf4a34]";
+  }
+
+  if (score < 70) {
+    return "border-[#f3e4b8] bg-[#fffaf0] text-[#9a6a00]";
+  }
+
+  return "border-[#d7ede4] bg-[#f1fbf6] text-[#2c7d5b]";
+}
+
+function neutralToneClass() {
+  return "border-[#dbe4f4] bg-[#f7f9fe] text-[#173b72]";
 }
 
 function buildFallbackCaseRecord(caseId: string, title: string): CaseRecord {
@@ -51,6 +106,8 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
     hydrateCaseWorkspace,
     savedAt,
     selectedCaseId,
+    updateResources,
+    updateRoadmap,
     workspace,
     workspaceReady,
   } = useAssessmentWorkspace();
@@ -58,13 +115,12 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingCache, setUsingCache] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [timelineNote, setTimelineNote] = useState("");
   const [reassessmentChange, setReassessmentChange] = useState("");
   const [reassessmentSubmitting, setReassessmentSubmitting] = useState(false);
   const [comparison, setComparison] = useState<ReassessmentComparison | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingCase, setSavingCase] = useState(false);
+  const [resourceLoading, setResourceLoading] = useState(false);
   const applyWorkspace = useEffectEvent((payload: CaseWorkspacePayload) => {
     hydrateCaseWorkspace(payload);
     setCaseWorkspace(payload);
@@ -80,6 +136,11 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
       case:
         workspace.currentCase ||
         buildFallbackCaseRecord(caseId, workspace.situation.slice(0, 80) || "Saved Case"),
+      initialSnapshot:
+        workspace.initialSnapshot || {
+          assessment: workspace.assessment,
+          analysis: workspace.analysis,
+        },
       latestAssessment: workspace.assessment,
       analysis: workspace.analysis,
       priorities: workspace.priorities,
@@ -159,39 +220,64 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
     };
   }, [caseId, hasValidCaseId, workspaceReady]);
 
-  useEffect(() => {
-    if (!frontendFeatures.enableTimeline || !caseWorkspace || !hasValidCaseId) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadTimeline() {
-      try {
-        const response = await fetchCaseTimeline(caseId);
-        if (!cancelled) {
-          setTimeline(response.data.items);
-        }
-      } catch {
-        if (!cancelled) {
-          setTimeline([]);
-        }
-      }
-    }
-
-    void loadTimeline();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [caseId, caseWorkspace?.case.id, hasValidCaseId]);
-
   const visibleResources =
     selectedCaseId === caseId ? workspace?.resources ?? [] : [];
 
   useEffect(() => {
     setTitleDraft(caseWorkspace?.case.title ?? "");
-  }, [caseWorkspace?.case.title]);
+    setComparison(caseWorkspace?.comparison ?? null);
+  }, [caseWorkspace?.case.title, caseWorkspace?.comparison]);
+
+  useEffect(() => {
+    if (!caseWorkspace || !hasValidCaseId) {
+      return;
+    }
+
+    let cancelled = false;
+    const currentWorkspace = caseWorkspace;
+
+    async function loadRecommendedResources() {
+      setResourceLoading(true);
+
+      try {
+        const response = await fetchRecommendedResources({
+          situation: currentWorkspace.latestAssessment.situation_text,
+          analysis: {
+            housingRisk: currentWorkspace.analysis.housingRisk,
+            incomeRisk: currentWorkspace.analysis.incomeRisk,
+            healthcareRisk: currentWorkspace.analysis.healthcareRisk,
+            overallRisk: currentWorkspace.analysis.overallRisk,
+          },
+        });
+
+        if (!cancelled) {
+          updateResources(response.data.resources);
+        }
+      } catch {
+        if (!cancelled && selectedCaseId === caseId && !workspace?.resources?.length) {
+          updateResources([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setResourceLoading(false);
+        }
+      }
+    }
+
+    void loadRecommendedResources();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    caseId,
+    caseWorkspace?.latestAssessment.id,
+    caseWorkspace?.analysis.housingRisk,
+    caseWorkspace?.analysis.incomeRisk,
+    caseWorkspace?.analysis.healthcareRisk,
+    caseWorkspace?.analysis.overallRisk,
+    hasValidCaseId,
+  ]);
 
   async function applyCasePatch(
     patch: { title?: string; status?: CaseRecord["status"] },
@@ -261,24 +347,79 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
     );
   }
 
+  const initialSnapshot =
+    caseWorkspace.initialSnapshot ?? {
+      assessment: caseWorkspace.latestAssessment,
+      analysis: caseWorkspace.analysis,
+    };
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#8eaef5]">
-              Case Workspace
+    <div className="space-y-8">
+      <section className="rounded-[26px] border border-[#dbe4f4] bg-white px-6 py-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)] md:px-8">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/cases"
+                className="inline-flex items-center gap-2 rounded-[12px] border border-[#d9deea] bg-white px-4 py-2.5 text-sm font-semibold text-[#173b72]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Cases
+              </Link>
+              <CaseStatusBadge status={caseWorkspace.case.status} />
+            </div>
+
+            <h2 className="mt-4 font-heading text-[2.3rem] font-bold tracking-[-0.05em] text-[#173b72] md:text-[2.8rem]">
+              {caseWorkspace.case.title}
+            </h2>
+
+            <p className="mt-4 max-w-4xl text-[16px] leading-8 text-[#62728f]">
+              {truncateText(
+                caseWorkspace.analysis.summary ||
+                  "Your current case snapshot is ready to review.",
+                220,
+              )}
             </p>
-            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center">
+
+            {usingCache ? (
+              <div className="mt-5 rounded-[18px] border border-[#d9deea] bg-[#f7f9fe] px-4 py-3 text-sm text-[#62728f]">
+                You are viewing a saved local copy from{" "}
+                {savedAt ? formatDate(savedAt) : "a previous session"} while the secure
+                case history reconnects.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="w-full max-w-[420px] rounded-[22px] border border-[#dbe4f4] bg-[#fbfcff] p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#173b72]">
+                <Edit3 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-heading text-[1.3rem] font-bold text-[#173b72]">
+                  Case Management
+                </h3>
+                <p className="text-sm text-[#62728f]">
+                  Keep the case title and status organized here.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
               <input
                 value={titleDraft}
                 onChange={(event) => setTitleDraft(event.target.value)}
-                className="w-full max-w-3xl rounded-[16px] border border-[#d9deea] bg-white px-4 py-3 font-heading text-[1.5rem] font-bold tracking-[-0.03em] text-[#173b72] outline-none"
+                className="w-full rounded-[16px] border border-[#d9deea] bg-white px-4 py-3 text-base font-semibold text-[#173b72] outline-none"
               />
               <Button
                 type="button"
                 variant="outline"
-                disabled={savingCase || !titleDraft.trim() || titleDraft.trim() === caseWorkspace.case.title}
+                className="w-full"
+                disabled={
+                  savingCase ||
+                  !titleDraft.trim() ||
+                  titleDraft.trim() === caseWorkspace.case.title
+                }
                 onClick={() =>
                   void applyCasePatch(
                     { title: titleDraft.trim() },
@@ -290,259 +431,290 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
                 Save Title
               </Button>
             </div>
-            <p className="mt-3 max-w-3xl text-[16px] leading-8 text-[#62728f]">
-              {caseWorkspace.analysis.summary || "Your current case snapshot is ready to review."}
-            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={savingCase || caseWorkspace.case.status === "RESOLVED"}
+                onClick={() =>
+                  void applyCasePatch(
+                    { status: "RESOLVED" },
+                    "Case marked as resolved.",
+                    {
+                      title: "Mark this case as resolved?",
+                      text: "You can reopen it later if the situation changes again.",
+                      confirmButtonText: "Mark Resolved",
+                    },
+                  )
+                }
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Resolve
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={savingCase || caseWorkspace.case.status === "ARCHIVED"}
+                onClick={() =>
+                  void applyCasePatch(
+                    { status: "ARCHIVED" },
+                    "Case archived.",
+                    {
+                      title: "Archive this case?",
+                      text: "The case will stay in your history and can still be reopened later.",
+                      confirmButtonText: "Archive Case",
+                    },
+                  )
+                }
+              >
+                <Archive className="h-4 w-4" />
+                Archive
+              </Button>
+              {(caseWorkspace.case.status === "ARCHIVED" ||
+                caseWorkspace.case.status === "RESOLVED") ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:col-span-2"
+                  disabled={savingCase}
+                  onClick={() =>
+                    void applyCasePatch(
+                      { status: "ACTIVE" },
+                      "Case reopened.",
+                    )
+                  }
+                >
+                  Reopen Case
+                </Button>
+              ) : null}
+            </div>
           </div>
-          <CaseStatusBadge status={caseWorkspace.case.status} />
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-4">
-          <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7c879e]">
-              Stability Score
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div
+            className={`rounded-[20px] border px-4 py-4 ${stabilityToneClass(
+              caseWorkspace.analysis.stabilityScore,
+            )}`}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+              Current score
             </p>
-            <p className="mt-2 font-heading text-3xl font-bold text-[#173b72]">
+            <p className="mt-2 font-heading text-4xl font-bold">
               {caseWorkspace.analysis.stabilityScore}
             </p>
           </div>
-          <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7c879e]">
-              Main Risk
+          <div
+            className={`rounded-[20px] border px-4 py-4 ${riskToneClass(
+              caseWorkspace.case.main_risk || caseWorkspace.analysis.overallRisk,
+            )}`}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+              Main risk
             </p>
-            <p className="mt-2 text-sm font-semibold text-[#173b72]">
-              {caseWorkspace.case.main_risk || caseWorkspace.analysis.overallRisk}
+            <p className="mt-2 text-base font-semibold">
+              {caseWorkspace.case.main_risk || caseWorkspace.analysis.overallRisk || "Pending"}
             </p>
           </div>
-          <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
+          <div className={`rounded-[20px] border px-4 py-4 ${neutralToneClass()}`}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7c879e]">
-              Last Activity
+              Last activity
             </p>
-            <p className="mt-2 text-sm font-semibold text-[#173b72]">
+            <p className="mt-2 text-base font-semibold text-[#173b72]">
               {formatDate(caseWorkspace.case.last_activity_at)}
             </p>
           </div>
-          <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
+          <div className={`rounded-[20px] border px-4 py-4 ${neutralToneClass()}`}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7c879e]">
-              Latest Snapshot
+              Latest assessment
             </p>
-            <p className="mt-2 text-sm font-semibold text-[#173b72]">
+            <p className="mt-2 text-base font-semibold text-[#173b72]">
               {formatDate(caseWorkspace.latestAssessment.created_at)}
             </p>
           </div>
         </div>
-
-        {usingCache ? (
-          <div className="mt-6 rounded-[18px] border border-[#d9deea] bg-[#f7f9fe] px-4 py-3 text-sm text-[#62728f]">
-            You are viewing your saved local workspace cache from{" "}
-            {savedAt ? formatDate(savedAt) : "a previous session"} while the
-            secure case history service reconnects.
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-[12px] bg-[#173b72] px-4 py-3 text-sm font-semibold text-white"
-          >
-            Return to Dashboard
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/roadmap"
-            className="inline-flex items-center gap-2 rounded-[12px] border border-[#d9deea] bg-white px-4 py-3 text-sm font-semibold text-[#173b72]"
-          >
-            Open Roadmap
-          </Link>
-          <Link
-            href="/progress"
-            className="inline-flex items-center gap-2 rounded-[12px] border border-[#d9deea] bg-white px-4 py-3 text-sm font-semibold text-[#173b72]"
-          >
-            Open Progress
-          </Link>
-          <Link
-            href="/resources"
-            className="inline-flex items-center gap-2 rounded-[12px] border border-[#d9deea] bg-white px-4 py-3 text-sm font-semibold text-[#173b72]"
-          >
-            Open Resources
-          </Link>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={savingCase || caseWorkspace.case.status === "RESOLVED"}
-            onClick={() =>
-              void applyCasePatch(
-                { status: "RESOLVED" },
-                "Case marked as resolved.",
-                {
-                  title: "Mark this case as resolved?",
-                  text: "You can reopen it later if the situation changes again.",
-                  confirmButtonText: "Mark Resolved",
-                },
-              )
-            }
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Mark Resolved
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={savingCase || caseWorkspace.case.status === "ARCHIVED"}
-            onClick={() =>
-              void applyCasePatch(
-                { status: "ARCHIVED" },
-                "Case archived.",
-                {
-                  title: "Archive this case?",
-                  text: "The case will stay in your history and can still be reopened later.",
-                  confirmButtonText: "Archive Case",
-                },
-              )
-            }
-          >
-            <Archive className="h-4 w-4" />
-            Archive Case
-          </Button>
-          {(caseWorkspace.case.status === "ARCHIVED" ||
-            caseWorkspace.case.status === "RESOLVED") ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={savingCase}
-              onClick={() =>
-                void applyCasePatch(
-                  { status: "ACTIVE" },
-                  "Case reopened.",
-                )
-              }
-            >
-              Reopen Case
-            </Button>
-          ) : null}
-        </div>
       </section>
 
-      <section>
-        <article className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
-          <h3 className="font-heading text-[1.8rem] font-bold text-[#173b72]">
-            Top Priorities
-          </h3>
-          <div className="mt-5 space-y-3">
-            {caseWorkspace.priorities.map((priority, index) => (
-              <div
-                key={`${priority.id ?? priority.title ?? "priority"}-${index}`}
-                className="rounded-[18px] bg-[#f7f9fe] px-4 py-4"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8eaef5]">
-                  Priority {index + 1}
-                </p>
-                <p className="mt-2 font-heading text-xl font-bold text-[#173b72]">
-                  {priority.title}
-                </p>
-                <p className="mt-2 text-[15px] leading-7 text-[#62728f]">
-                  {priority.reasoning}
-                </p>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      <section className="grid gap-6 2xl:grid-cols-[1.15fr_0.85fr]">
         <article className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#173b72]">
-              <Sparkles className="h-5 w-5" />
+              <FileText className="h-5 w-5" />
             </div>
             <div>
               <h3 className="font-heading text-[1.8rem] font-bold text-[#173b72]">
-                Action Plan
+                Situation Snapshot
               </h3>
               <p className="text-sm text-[#62728f]">
-                The latest roadmap linked to this case
+                A clear read of the current situation before taking action.
               </p>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 xl:grid-cols-2">
-            {caseWorkspace.roadmap.map((item, index) => (
-              <div
-                key={`${item.id ?? item.task}-${index}`}
-                className="rounded-[18px] bg-[#f7f9fe] px-4 py-4"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8eaef5]">
-                  {item.timeline}
-                </p>
-                <p className="mt-2 text-[16px] font-semibold text-[#173b72]">
-                  {item.task}
-                </p>
-                {item.due_at ? (
-                  <p className="mt-2 text-sm text-[#62728f]">
-                    Suggested due date: {formatDate(item.due_at)}
-                  </p>
-                ) : null}
-              </div>
-            ))}
+          <p className="mt-5 text-[15px] leading-8 text-[#62728f]">
+            {truncateText(initialSnapshot.assessment.situation_text, 520)}
+          </p>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className={`rounded-[18px] border px-4 py-4 ${neutralToneClass()}`}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7c879e]">
+                Initial score
+              </p>
+              <p className="mt-2 font-heading text-4xl font-bold text-[#173b72]">
+                {caseWorkspace.case.initial_stability_score ?? "--"}
+              </p>
+            </div>
+            <div
+              className={`rounded-[18px] border px-4 py-4 ${riskToneClass(
+                initialSnapshot.analysis.housingRisk,
+              )}`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                Housing
+              </p>
+              <p className="mt-2 text-base font-semibold">
+                {initialSnapshot.analysis.housingRisk ?? "Pending"}
+              </p>
+            </div>
+            <div
+              className={`rounded-[18px] border px-4 py-4 ${riskToneClass(
+                initialSnapshot.analysis.incomeRisk,
+              )}`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                Income
+              </p>
+              <p className="mt-2 text-base font-semibold">
+                {initialSnapshot.analysis.incomeRisk ?? "Pending"}
+              </p>
+            </div>
+            <div
+              className={`rounded-[18px] border px-4 py-4 ${riskToneClass(
+                initialSnapshot.analysis.healthcareRisk,
+              )}`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                Healthcare
+              </p>
+              <p className="mt-2 text-base font-semibold">
+                {initialSnapshot.analysis.healthcareRisk ?? "Pending"}
+              </p>
+            </div>
           </div>
         </article>
 
         <article className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
-          <h3 className="font-heading text-[1.8rem] font-bold text-[#173b72]">
-            Support Resources
-          </h3>
-          <p className="mt-2 text-sm text-[#62728f]">
-            Recommended and tracked support options for this case
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef4ff] text-[#173b72]">
+              <ShieldPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-heading text-[1.55rem] font-bold text-[#173b72]">
+                Support Options
+              </h3>
+              <p className="text-sm text-[#62728f]">
+                Relevant resources linked directly to this case.
+              </p>
+            </div>
+          </div>
 
           {visibleResources.length ? (
             <div className="mt-5 space-y-3">
-              {visibleResources.slice(0, 3).map((resource, index) => (
+              {visibleResources.slice(0, 4).map((resource, index) => (
                 <div
                   key={`${resource.resourceId ?? resource.name}-${index}`}
-                  className="rounded-[18px] bg-[#f7f9fe] px-4 py-4"
+                  className="rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-[#173b72]">{resource.name}</p>
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-[#173b72]">
+                        {resource.name}
+                      </p>
+                      {resource.category ? (
+                        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8eaef5]">
+                          {resource.category}
+                        </p>
+                      ) : null}
+                    </div>
                     <span className="rounded-full bg-[#eef4ff] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#173b72]">
                       {resource.priority}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-7 text-[#62728f]">
+                  <p className="mt-2 break-words text-sm leading-7 text-[#62728f]">
                     {resource.reason}
                   </p>
+                  {resource.contact ? (
+                    <p className="mt-3 break-words text-sm font-medium text-[#173b72]">
+                      {resource.contact}
+                    </p>
+                  ) : null}
+                  {resource.eligibility ? (
+                    <p className="mt-2 break-words text-sm text-[#62728f]">
+                      {resource.eligibility}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
+          ) : resourceLoading ? (
+            <div className="mt-5 rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4 text-sm text-[#62728f]">
+              Matching support resources for this case...
+            </div>
           ) : caseWorkspace.resourceInteractions.length ? (
             <div className="mt-5 space-y-3">
-              {caseWorkspace.resourceInteractions.slice(0, 3).map((interaction, index) => (
+              {caseWorkspace.resourceInteractions.slice(0, 4).map((interaction, index) => (
                 <div
                   key={`${interaction.id ?? interaction.resource_id}-${index}`}
-                  className="rounded-[18px] bg-[#f7f9fe] px-4 py-4"
+                  className="rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4"
                 >
                   <p className="font-semibold text-[#173b72]">
                     {interaction.resource?.name || interaction.resource?.title || "Tracked resource"}
                   </p>
                   <p className="mt-2 text-sm text-[#62728f]">
-                    Current status: {interaction.status || "Saved"}
+                    {interaction.status
+                      ? `Current status: ${interaction.status}`
+                      : "Saved for follow-up"}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="mt-5 rounded-[18px] bg-[#f7f9fe] px-4 py-4 text-sm text-[#62728f]">
-              Support options will appear here after recommendations or tracked resource actions are available for this case.
+            <div className="mt-5 rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4 text-sm text-[#62728f]">
+              Resource matches will appear here as soon as support options are available for this case.
             </div>
           )}
-
-          <div className="mt-6">
-            <Link href="/resources">
-              <Button type="button">Open Resource Workspace</Button>
-            </Link>
-          </div>
         </article>
       </section>
+
+      <CaseRoadmapFlow
+        caseId={caseId}
+        priorities={caseWorkspace.priorities}
+        roadmap={caseWorkspace.roadmap}
+        stabilityScore={caseWorkspace.analysis.stabilityScore}
+        onRoadmapChange={(roadmap) => {
+          const nextPayload = {
+            ...caseWorkspace,
+            roadmap,
+          } satisfies CaseWorkspacePayload;
+
+          updateRoadmap(roadmap);
+          applyWorkspace(nextPayload);
+        }}
+        onWorkspaceRefresh={({ analysis, assessment, priorities, roadmap, comparison }) => {
+          const nextPayload = {
+            ...caseWorkspace,
+            latestAssessment: assessment,
+            analysis,
+            priorities,
+            roadmap,
+            comparison,
+          } satisfies CaseWorkspacePayload;
+
+          updateRoadmap(roadmap);
+          applyWorkspace(nextPayload);
+        }}
+      />
 
       {frontendFeatures.enableReassessment ? (
         <section className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
@@ -550,8 +722,8 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
             Update This Case
           </h3>
           <p className="mt-3 text-[15px] leading-8 text-[#62728f]">
-            Record what changed so Civic Bridge AI can generate a fresh case
-            snapshot and compare it with the previous one.
+            Add a short update when the situation changes so the next review can
+            compare the old and new snapshot clearly.
           </p>
           <textarea
             value={reassessmentChange}
@@ -579,6 +751,7 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
 
                   applyWorkspace({
                     case: caseWorkspace.case,
+                    initialSnapshot,
                     latestAssessment: response.data.assessment,
                     analysis: response.data.analysis,
                     priorities: reassessmentPriorities,
@@ -607,7 +780,7 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
 
           {comparison ? (
             <div className="mt-5 grid gap-4 xl:grid-cols-2">
-              <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
+              <div className="rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8eaef5]">
                   Stability Delta
                 </p>
@@ -616,7 +789,7 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
                 </p>
                 <p className="mt-2 text-sm text-[#62728f]">{comparison.summary}</p>
               </div>
-              <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4">
+              <div className="rounded-[18px] border border-[#dbe4f4] bg-[#f7f9fe] px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8eaef5]">
                   Overall Risk
                 </p>
@@ -626,68 +799,6 @@ export function CaseDetailPageContent({ caseId }: { caseId: string }) {
               </div>
             </div>
           ) : null}
-        </section>
-      ) : null}
-
-      {frontendFeatures.enableTimeline ? (
-        <section className="rounded-[24px] border border-[#dbe4f4] bg-white p-6 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
-          <h3 className="font-heading text-[1.8rem] font-bold text-[#173b72]">
-            Case Timeline
-          </h3>
-          <p className="mt-3 text-[15px] leading-8 text-[#62728f]">
-            Review the recent history of this case and add private notes as the
-            situation changes.
-          </p>
-          <div className="mt-5 flex gap-3">
-            <textarea
-              value={timelineNote}
-              onChange={(event) => setTimelineNote(event.target.value)}
-              className="min-h-24 flex-1 rounded-[18px] border border-[#d9deea] bg-[#fbfcff] px-4 py-4 text-sm leading-7 text-[#173b72] outline-none"
-              placeholder="Add a private timeline note."
-            />
-            <Button
-              type="button"
-              disabled={timelineNote.trim().length < 3}
-              onClick={async () => {
-                try {
-                  const response = await createTimelineNote(caseId, timelineNote);
-                  setTimeline((current) => [response.data, ...current]);
-                  setTimelineNote("");
-                  notify.success("Timeline note added.");
-                } catch (noteError) {
-                  notify.error(
-                    noteError instanceof Error
-                      ? noteError.message
-                      : "We couldn't save the timeline note right now.",
-                  );
-                }
-              }}
-            >
-              Save Note
-            </Button>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {timeline.length ? (
-              timeline.map((event) => (
-                <div
-                  key={event.id}
-                  className="rounded-[18px] bg-[#f7f9fe] px-4 py-4 text-sm text-[#62728f]"
-                >
-                  <p className="font-semibold text-[#173b72]">{event.event_type}</p>
-                  <p className="mt-2 leading-7">
-                    {event.payload && "note" in event.payload
-                      ? String(event.payload.note)
-                      : "Case activity recorded."}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[18px] bg-[#f7f9fe] px-4 py-4 text-sm text-[#62728f]">
-                No timeline events yet.
-              </div>
-            )}
-          </div>
         </section>
       ) : null}
     </div>

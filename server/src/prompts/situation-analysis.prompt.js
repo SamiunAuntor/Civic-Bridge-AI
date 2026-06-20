@@ -80,6 +80,7 @@ Return ONLY valid JSON.
 Required format:
 
 {
+  "caseTitle": "short 2-4 word case label",
   "subScores": {
     "housingStability": number,
     "incomeStability": number,
@@ -101,6 +102,12 @@ Required format:
   "confidence": number,
   "scoreExplanation": "brief explanation"
 }
+
+Title guidance:
+- Make "caseTitle" short, human-friendly, and specific.
+- Prefer 2 to 4 words.
+- Do not copy a full sentence from the user.
+- Do not use quotes or punctuation-heavy phrases.
 
 Situation:
 

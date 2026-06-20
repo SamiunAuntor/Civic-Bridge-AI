@@ -1,4 +1,4 @@
-const model = require("../config/gemini");
+const { generateText } = require("../config/ai-provider");
 const { createHttpError } = require("./http-error");
 
 function cleanJson(text) {
@@ -6,6 +6,53 @@ function cleanJson(text) {
     .replace(/```json/g, "")
     .replace(/```/g, "")
     .trim();
+}
+
+function extractJsonCandidate(text) {
+  const cleaned = cleanJson(text);
+
+  if (!cleaned) {
+    return cleaned;
+  }
+
+  const objectStart = cleaned.indexOf("{");
+  const objectEnd = cleaned.lastIndexOf("}");
+
+  if (objectStart !== -1 && objectEnd !== -1 && objectEnd > objectStart) {
+    return cleaned.slice(objectStart, objectEnd + 1);
+  }
+
+  const arrayStart = cleaned.indexOf("[");
+  const arrayEnd = cleaned.lastIndexOf("]");
+
+  if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+    return cleaned.slice(arrayStart, arrayEnd + 1);
+  }
+
+  return cleaned;
+}
+
+function mapProviderError(error) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  const message = String(error?.message || "");
+
+  if (status === 429 || message.includes("Too Many Requests") || message.includes("Quota exceeded")) {
+    return createHttpError(
+      429,
+      message || "AI provider quota exceeded",
+      "The AI provider request limit has been reached for now. Please wait and try again, or update the provider quota/billing.",
+    );
+  }
+
+  if (status === 401 || status === 403 || message.includes("API key")) {
+    return createHttpError(
+      502,
+      message || "AI provider authentication failed",
+      "The AI provider credentials are not working right now. Please verify the configured API key.",
+    );
+  }
+
+  return null;
 }
 
 async function runPrompt({
@@ -32,13 +79,13 @@ async function runPrompt({
     });
 
     try {
-      const result = await Promise.race([
-        model.generateContent(prompt),
+      const resultText = await Promise.race([
+        generateText(prompt),
         timeoutPromise,
       ]);
       clearTimeout(timeoutId);
 
-      const cleaned = cleanJson(result.response.text());
+      const cleaned = extractJsonCandidate(resultText);
       const parsed = JSON.parse(cleaned);
 
       if (validator && !validator(parsed)) {
@@ -53,10 +100,15 @@ async function runPrompt({
     } catch (error) {
       clearTimeout(timeoutId);
       lastError = error;
+      const mappedProviderError = mapProviderError(error);
 
       const isJsonError =
         error instanceof SyntaxError ||
         String(error?.message || "").includes("Unexpected");
+
+      if (mappedProviderError) {
+        throw mappedProviderError;
+      }
 
       if (attempt < maxRetries && isJsonError) {
         continue;
@@ -83,4 +135,5 @@ async function runPrompt({
 
 module.exports = {
   runPrompt,
+  extractJsonCandidate,
 };

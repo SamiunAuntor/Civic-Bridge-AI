@@ -15,11 +15,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isCaseRoute = pathname.startsWith("/cases");
 
   return (
-    <div className="min-h-screen bg-[#171d31]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] overflow-hidden bg-[#f5f7fd]">
+    <div className="min-h-screen bg-[#f5f7fd]">
+      <div className="mx-auto flex h-screen w-full max-w-[1440px] overflow-hidden bg-[#f5f7fd]">
         <Sidebar />
 
-        <div className="flex min-h-full flex-1 flex-col overflow-hidden">
+        <div className="flex h-full flex-1 flex-col overflow-hidden">
           <TopHeader
             menuButton={
               <button

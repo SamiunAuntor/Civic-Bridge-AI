@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Eye, Globe, LoaderCircle, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -127,6 +128,14 @@ export default function LoginPage() {
               >
                 <Eye className="h-4 w-4" />
               </button>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-[13px] font-semibold text-[#173b72]"
+              >
+                Forgot password?
+              </Link>
             </div>
           </div>
 

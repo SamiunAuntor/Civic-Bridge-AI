@@ -1,6 +1,26 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+process.env.FIREBASE_ADMIN_CREDENTIAL_BASE64 = Buffer.from("{}").toString(
+  "base64",
+);
+
+const verifyIdToken = vi.fn();
+
+vi.mock("firebase-admin/app", () => ({
+  cert: vi.fn(() => ({})),
+  getApp: vi.fn(() => ({})),
+  getApps: vi.fn(() => []),
+  initializeApp: vi.fn(() => ({})),
+}));
+
+vi.mock("firebase-admin/auth", () => ({
+  getAuth: vi.fn(() => ({
+    verifyIdToken,
+  })),
+}));
+
 const firebase = require("../src/config/firebase");
 const userService = require("../src/services/user.service");
 const router = require("../src/routes/user.routes");

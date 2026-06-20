@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "encode:firebase-admin": "node scripts/encode-service-account.js",
     "test": "vitest run"
   },
   "dependencies": {

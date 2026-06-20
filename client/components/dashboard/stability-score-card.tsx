@@ -3,12 +3,37 @@ interface StabilityScoreCardProps {
   summary: string;
 }
 
+function scoreTone(score: number) {
+  if (score < 40) {
+    return {
+      ring: "#b73429",
+      track: "#d9e4ff",
+      value: "#b73429",
+    };
+  }
+
+  if (score < 70) {
+    return {
+      ring: "#c08912",
+      track: "#d9e4ff",
+      value: "#9a6a00",
+    };
+  }
+
+  return {
+    ring: "#3aa675",
+    track: "#d9e4ff",
+    value: "#2c7d5b",
+  };
+}
+
 export function StabilityScoreCard({
   score,
   summary,
 }: StabilityScoreCardProps) {
   const normalizedScore = Math.max(0, Math.min(100, score));
   const progress = Math.max(8, normalizedScore);
+  const tone = scoreTone(normalizedScore);
 
   return (
     <section className="rounded-[18px] border border-[#dbe4f4] bg-white p-5 shadow-[0_8px_20px_-18px_rgba(17,43,89,0.3)]">
@@ -20,11 +45,14 @@ export function StabilityScoreCard({
         <div
           className="relative flex h-[132px] w-[132px] items-center justify-center rounded-full"
           style={{
-            background: `conic-gradient(#b73429 ${progress}%, #d9e4ff ${progress}% 100%)`,
+            background: `conic-gradient(${tone.ring} ${progress}%, ${tone.track} ${progress}% 100%)`,
           }}
         >
           <div className="flex h-[96px] w-[96px] flex-col items-center justify-center rounded-full bg-white">
-            <span className="font-heading text-[24px] font-bold text-[#b73429]">
+            <span
+              className="font-heading text-[24px] font-bold"
+              style={{ color: tone.value }}
+            >
               {normalizedScore}
             </span>
             <span className="text-[12px] font-semibold text-[#173b72]">

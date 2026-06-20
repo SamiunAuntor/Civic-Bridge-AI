@@ -17,6 +17,7 @@ describe("assessment service case linking", () => {
     const riskService = require("../src/services/risk.service");
     const priorityService = require("../src/services/priority.service");
     const roadmapService = require("../src/services/roadmap.service");
+    const roadmapRepository = require("../src/repositories/roadmap.repository");
     const caseService = require("../src/services/case.service");
 
     vi.spyOn(situationAnalysisService, "analyzeSituation").mockResolvedValue({
@@ -43,6 +44,10 @@ describe("assessment service case linking", () => {
     vi.spyOn(priorityService, "savePriorities").mockResolvedValue({});
     vi.spyOn(roadmapService, "createRoadmap").mockResolvedValue({
       roadmap: [{ timeline: "TODAY", task: "Task" }],
+    });
+    vi.spyOn(roadmapRepository, "getRoadmapByAssessmentId").mockResolvedValue({
+      data: [{ id: "roadmap-1", timeline: "TODAY", task: "Task", status: "NOT_STARTED" }],
+      error: null,
     });
     vi.spyOn(caseService, "maybeCreateCaseForAssessment").mockResolvedValue({
       id: "case-1",

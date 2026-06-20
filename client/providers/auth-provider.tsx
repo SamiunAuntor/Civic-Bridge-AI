@@ -3,6 +3,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -17,6 +18,7 @@ import {
   startTransition,
 } from "react";
 import { firebaseAuth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import { toFriendlyAuthError } from "@/lib/auth-errors";
 import { fetchCurrentUser } from "@/services/user-service";
 import type { User } from "@/types/domain";
 
@@ -33,6 +35,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
 }
 
@@ -109,6 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthLoading(true);
     try {
       await signInWithEmailAndPassword(firebaseAuth, email, password);
+    } catch (error) {
+      throw new Error(toFriendlyAuthError(error));
     } finally {
       setAuthLoading(false);
     }
@@ -130,6 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (fullName.trim()) {
         await updateProfile(credentials.user, { displayName: fullName.trim() });
       }
+    } catch (error) {
+      throw new Error(toFriendlyAuthError(error));
     } finally {
       setAuthLoading(false);
     }
@@ -143,6 +150,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthLoading(true);
     try {
       await signInWithPopup(firebaseAuth, googleProvider);
+    } catch (error) {
+      throw new Error(toFriendlyAuthError(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function sendPasswordReset(email: string) {
+    if (!firebaseAuth) {
+      throw firebaseUnavailableError();
+    }
+
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      throw new Error("Enter your email address first so we can send a reset link.");
+    }
+
+    setAuthLoading(true);
+    try {
+      await sendPasswordResetEmail(firebaseAuth, normalizedEmail);
+    } catch (error) {
+      throw new Error(toFriendlyAuthError(error));
     } finally {
       setAuthLoading(false);
     }
@@ -169,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signInWithGoogle,
+        sendPasswordReset,
         signOutUser,
       }}
     >
