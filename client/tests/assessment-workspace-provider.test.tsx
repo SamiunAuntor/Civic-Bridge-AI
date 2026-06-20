@@ -1,11 +1,26 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach } from "vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   AssessmentWorkspaceProvider,
   type AssessmentWorkspace,
 } from "@/providers/assessment-workspace-provider";
 import { useAssessmentWorkspace } from "@/hooks/use-assessment-workspace";
+
+const authState = {
+  status: "authenticated" as const,
+  firebaseUser: { uid: "firebase-user-1" },
+  profile: {
+    id: "user-1",
+    firebase_uid: "firebase-user-1",
+    email: "user-1@example.com",
+    name: "User One",
+  },
+};
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => authState,
+}));
 
 function Probe() {
   const { selectedCaseId, setWorkspace, workspace, workspaceReady } =
@@ -26,7 +41,7 @@ function Probe() {
               situation: "I need help staying housed.",
               assessment: {
                 id: "assessment-2",
-                user_id: "user-2",
+                user_id: "user-1",
                 situation_text: "I need help staying housed.",
                 stability_score: 38,
               },
@@ -44,7 +59,7 @@ function Probe() {
               simulations: [],
               currentCase: {
                 id: "case-2",
-                user_id: "user-2",
+                user_id: "user-1",
                 title: "Case 2",
                 status: "ACTIVE",
                 last_activity_at: "2026-06-20T00:00:00.000Z",
@@ -78,7 +93,9 @@ afterEach(() => {
 
 describe("AssessmentWorkspaceProvider", () => {
   it("starts empty when localStorage has no workspace", async () => {
-    window.localStorage.removeItem("civicbridge.latest-assessment-workspace");
+    window.localStorage.removeItem(
+      "civicbridge.latest-assessment-workspace:firebase-user-1",
+    );
 
     renderProvider();
 
@@ -90,7 +107,7 @@ describe("AssessmentWorkspaceProvider", () => {
 
   it("removes malformed localStorage data safely", async () => {
     window.localStorage.setItem(
-      "civicbridge.latest-assessment-workspace",
+      "civicbridge.latest-assessment-workspace:firebase-user-1",
       "{bad-json",
     );
 
@@ -99,13 +116,15 @@ describe("AssessmentWorkspaceProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("ready")).toHaveTextContent("true");
     });
-    expect(window.localStorage.getItem("civicbridge.latest-assessment-workspace")).toBe(
-      "{bad-json",
-    );
+    expect(
+      window.localStorage.getItem(
+        "civicbridge.latest-assessment-workspace:firebase-user-1",
+      ),
+    ).toBe("{bad-json");
     expect(screen.getByTestId("workspace")).toHaveTextContent("null");
   });
 
-  it("restores a valid legacy workspace from localStorage", async () => {
+  it("restores a valid workspace from the signed-in user's storage key", async () => {
     const workspace: AssessmentWorkspace = {
       situation: "I lost my job and need help.",
       assessment: {
@@ -133,8 +152,14 @@ describe("AssessmentWorkspaceProvider", () => {
     };
 
     window.localStorage.setItem(
-      "civicbridge.latest-assessment-workspace",
-      JSON.stringify(workspace),
+      "civicbridge.latest-assessment-workspace:firebase-user-1",
+      JSON.stringify({
+        workspaceVersion: 2,
+        ownerKey: "firebase-user-1",
+        selectedCaseId: null,
+        savedAt: "2026-06-20T00:00:00.000Z",
+        workspace,
+      }),
     );
 
     renderProvider();
@@ -175,9 +200,10 @@ describe("AssessmentWorkspaceProvider", () => {
     };
 
     window.localStorage.setItem(
-      "civicbridge.latest-assessment-workspace",
+      "civicbridge.latest-assessment-workspace:firebase-user-1",
       JSON.stringify({
         workspaceVersion: 2,
+        ownerKey: "firebase-user-1",
         selectedCaseId: "case-1",
         savedAt: "2026-06-20T00:00:00.000Z",
         workspace,
@@ -205,13 +231,67 @@ describe("AssessmentWorkspaceProvider", () => {
     screen.getByRole("button", { name: "Save workspace" }).click();
 
     const stored = window.localStorage.getItem(
-      "civicbridge.latest-assessment-workspace",
+      "civicbridge.latest-assessment-workspace:firebase-user-1",
     );
 
     expect(stored).not.toBeNull();
     expect(stored).toContain('"workspaceVersion":2');
+    expect(stored).toContain('"ownerKey":"firebase-user-1"');
     expect(stored).toContain('"selectedCaseId":"case-2"');
     expect(stored).toContain('"assessment-2"');
+  });
+
+  it("does not restore another user's cached workspace on the dashboard", async () => {
+    const otherUserWorkspace: AssessmentWorkspace = {
+      situation: "Another user case",
+      assessment: {
+        id: "assessment-9",
+        user_id: "user-9",
+        situation_text: "Another user case",
+        stability_score: 22,
+      },
+      analysis: {
+        stabilityScore: 22,
+        housingRisk: "HIGH",
+        incomeRisk: "HIGH",
+        healthcareRisk: "MEDIUM",
+        overallRisk: "HIGH",
+        summary: "summary",
+      },
+      priorities: [],
+      roadmap: [],
+      resources: [],
+      simulations: [],
+      currentCase: {
+        id: "case-9",
+        user_id: "user-9",
+        title: "Other user case",
+        status: "ACTIVE",
+        last_activity_at: "2026-06-20T00:00:00.000Z",
+      },
+      resourceInteractions: [],
+      resourceInteractionsAvailable: false,
+      comparison: null,
+    };
+
+    window.localStorage.setItem(
+      "civicbridge.latest-assessment-workspace:firebase-user-9",
+      JSON.stringify({
+        workspaceVersion: 2,
+        ownerKey: "firebase-user-9",
+        selectedCaseId: "case-9",
+        savedAt: "2026-06-20T00:00:00.000Z",
+        workspace: otherUserWorkspace,
+      }),
+    );
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ready")).toHaveTextContent("true");
+    });
+    expect(screen.getByTestId("workspace")).toHaveTextContent("null");
+    expect(screen.getByTestId("case-id")).toHaveTextContent("null");
   });
 
   it("keeps cached resources when hydrating the same case from the backend", async () => {

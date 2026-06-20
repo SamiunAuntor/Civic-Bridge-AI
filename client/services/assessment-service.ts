@@ -5,6 +5,7 @@ import type { Assessment, Priority, RiskAnalysis, RoadmapItem } from "@/types/do
 export interface CreateAssessmentBody {
   situation: string;
   intakeProfile?: {
+    topic?: string;
     primaryConcerns?: string[];
     timePressure?: string;
     housingStatus?: string;

@@ -108,10 +108,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <section className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-heading text-[48px] font-bold leading-none tracking-[-0.05em] text-[#173b72]">
-            Overview
-          </h2>
-          <p className="mt-4 text-[17px] text-[#62728f]">
+          <p className="text-[17px] text-[#62728f]">
             Here is the current case summary and active work for,
             {profile?.name ? ` ${profile.name}` : ""}.
           </p>

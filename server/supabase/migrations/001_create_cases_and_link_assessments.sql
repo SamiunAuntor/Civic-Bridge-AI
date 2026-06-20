@@ -14,6 +14,7 @@ create table if not exists public.cases (
   summary text null,
   status text not null default 'ACTIVE',
   main_risk text null,
+  initial_stability_score numeric(5,2) null,
   latest_stability_score numeric(5,2) null,
   current_assessment_id uuid null,
   last_activity_at timestamptz not null default now(),
@@ -41,6 +42,7 @@ insert into public.cases (
   summary,
   status,
   main_risk,
+  initial_stability_score,
   latest_stability_score,
   current_assessment_id,
   last_activity_at,
@@ -60,6 +62,7 @@ select
     else 'ACTIVE'
   end as status,
   ra.overall_risk,
+  a.stability_score,
   a.stability_score,
   a.id,
   coalesce(a.updated_at, a.created_at, now()),

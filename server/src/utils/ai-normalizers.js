@@ -53,7 +53,29 @@ function normalizeConfidence(value) {
 function normalizeStringArray(value, limit = 8) {
   return Array.isArray(value)
     ? value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit)
-    : [];
+      : [];
+}
+
+function normalizeCaseTitle(value, summary) {
+  const direct = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const fallbackSource = String(summary || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const candidate = direct || fallbackSource;
+
+  if (!candidate) {
+    return "Support Case";
+  }
+
+  const words = candidate
+    .replace(/[^\w\s-]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return words.join(" ").slice(0, 48) || "Support Case";
 }
 
 function normalizeDateValue(value) {
@@ -147,8 +169,10 @@ function normalizeSituationAnalysis(output) {
   );
   const explanation = String(output?.scoreExplanation || "").trim().slice(0, 1200);
   const summary = String(output?.summary || explanation || "").trim().slice(0, 800);
+  const caseTitle = normalizeCaseTitle(output?.caseTitle, summary);
 
   return {
+    caseTitle,
     subScores,
     stabilityScore,
     housingRisk: normalizeRiskLevel(output?.housingRisk),
@@ -215,11 +239,36 @@ function normalizeResourceRecommendations(output) {
   return {
     resources: resources
       .map((resource) => ({
-        title: String(resource?.title ?? resource?.name ?? "").trim(),
-        reason: String(resource?.reason || "").trim(),
+        title: String(resource?.title ?? resource?.name ?? "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 60),
+        reason: String(resource?.reason || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 220),
         priority: normalizeRiskLevel(resource?.priority || "MEDIUM"),
+        category: String(resource?.category || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 60),
+        contact: String(resource?.contact || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 140),
+        eligibility: String(resource?.eligibility || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160),
       }))
-      .filter((resource) => resource.title && resource.reason)
+      .filter(
+        (resource) =>
+          resource.title &&
+          resource.reason &&
+          !["none", "n/a", "no resource", "unknown"].includes(
+            resource.title.toLowerCase(),
+          ),
+      )
       .slice(0, 8),
   };
 }

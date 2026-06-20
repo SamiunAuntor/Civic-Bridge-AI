@@ -35,6 +35,11 @@ export interface RiskAnalysis {
   summary: string;
 }
 
+export interface CaseInitialSnapshot {
+  assessment: Assessment;
+  analysis: RiskAnalysis;
+}
+
 export interface CaseRecord {
   id: string;
   user_id: string;
@@ -42,6 +47,7 @@ export interface CaseRecord {
   summary?: string | null;
   status: CaseStatus;
   main_risk?: RiskLevel | string | null;
+  initial_stability_score?: number | null;
   latest_stability_score?: number | null;
   current_assessment_id?: string | null;
   last_activity_at: string;
@@ -172,6 +178,7 @@ export interface ApplicationAssistance {
 
 export interface CaseWorkspacePayload {
   case: CaseRecord;
+  initialSnapshot?: CaseInitialSnapshot;
   latestAssessment: Assessment;
   analysis: RiskAnalysis;
   priorities: Priority[];

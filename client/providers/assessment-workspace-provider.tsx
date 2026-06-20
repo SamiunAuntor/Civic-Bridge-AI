@@ -1,10 +1,12 @@
 "use client";
 
 import { createContext, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 import type {
   Assessment,
   CaseRecord,
+  CaseInitialSnapshot,
   CaseWorkspacePayload,
   Priority,
   ReassessmentComparison,
@@ -15,13 +17,14 @@ import type {
   Simulation,
 } from "@/types/domain";
 
-const STORAGE_KEY = "civicbridge.latest-assessment-workspace";
+const LEGACY_STORAGE_KEY = "civicbridge.latest-assessment-workspace";
 const WORKSPACE_VERSION = 2;
 
 export interface AssessmentWorkspace {
   situation: string;
   assessment: Assessment;
   analysis: RiskAnalysis;
+  initialSnapshot?: CaseInitialSnapshot | null;
   priorities: Priority[];
   roadmap: RoadmapItem[];
   resources: ResourceRecommendation[];
@@ -34,9 +37,14 @@ export interface AssessmentWorkspace {
 
 interface PersistedAssessmentWorkspace {
   workspaceVersion: number;
+  ownerKey?: string | null;
   selectedCaseId: string | null;
   savedAt: string;
   workspace: AssessmentWorkspace;
+}
+
+function buildStorageKey(ownerKey: string) {
+  return `${LEGACY_STORAGE_KEY}:${ownerKey}`;
 }
 
 function isValidCaseId(value: unknown): value is string {
@@ -58,6 +66,20 @@ function sanitizeWorkspace(
     ...value,
     currentCase,
   };
+}
+
+function workspaceBelongsToProfile(
+  workspace: AssessmentWorkspace | null,
+  profileUserId: string | null,
+) {
+  if (!workspace || !profileUserId) {
+    return true;
+  }
+
+  const assessmentOwnerId = workspace.assessment.user_id;
+  const caseOwnerId = workspace.currentCase?.user_id ?? null;
+
+  return assessmentOwnerId === profileUserId || caseOwnerId === profileUserId;
 }
 
 interface AssessmentWorkspaceContextValue {
@@ -89,16 +111,36 @@ export function AssessmentWorkspaceProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { firebaseUser, profile, status } = useAuth();
   const [workspace, setWorkspaceState] = useState<AssessmentWorkspace | null>(
     null,
   );
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const ownerKey = firebaseUser?.uid ?? profile?.firebase_uid ?? null;
+  const storageKey = ownerKey ? buildStorageKey(ownerKey) : null;
 
   useEffect(() => {
+    if (status === "loading") {
+      return;
+    }
+
+    setWorkspaceState(null);
+    setSelectedCaseId(null);
+    setSavedAt(null);
+
+    if (!ownerKey || !storageKey) {
+      setWorkspaceReady(true);
+      return;
+    }
+
+    setWorkspaceReady(false);
+
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+
+      const stored = window.localStorage.getItem(storageKey);
 
       if (stored) {
         const parsed = JSON.parse(stored) as
@@ -112,32 +154,57 @@ export function AssessmentWorkspaceProvider({
           "workspace" in parsed
         ) {
           const persisted = parsed as PersistedAssessmentWorkspace;
+          const persistedOwnerKey =
+            typeof persisted.ownerKey === "string" ? persisted.ownerKey : null;
+
+          if (persistedOwnerKey && persistedOwnerKey !== ownerKey) {
+            return;
+          }
+
           const sanitizedWorkspace = sanitizeWorkspace(persisted.workspace);
           const sanitizedSelectedCaseId = isValidCaseId(persisted.selectedCaseId)
             ? persisted.selectedCaseId
             : sanitizedWorkspace?.currentCase?.id ?? null;
 
-          setWorkspaceState(sanitizedWorkspace);
-          setSelectedCaseId(sanitizedSelectedCaseId);
-          setSavedAt(persisted.savedAt ?? null);
+          if (workspaceBelongsToProfile(sanitizedWorkspace, profile?.id ?? null)) {
+            setWorkspaceState(sanitizedWorkspace);
+            setSelectedCaseId(sanitizedSelectedCaseId);
+            setSavedAt(persisted.savedAt ?? null);
+          }
         } else {
-          setWorkspaceState(sanitizeWorkspace(parsed as AssessmentWorkspace));
+          const sanitizedWorkspace = sanitizeWorkspace(parsed as AssessmentWorkspace);
+
+          if (workspaceBelongsToProfile(sanitizedWorkspace, profile?.id ?? null)) {
+            setWorkspaceState(sanitizedWorkspace);
+          }
         }
       }
     } catch {
     } finally {
       setWorkspaceReady(true);
     }
-  }, []);
+  }, [ownerKey, profile?.id, status, storageKey]);
 
   function persist(
     nextWorkspace: AssessmentWorkspace | null,
     nextSelectedCaseId: string | null,
   ) {
     const sanitizedWorkspace = sanitizeWorkspace(nextWorkspace);
+    const profileUserId = profile?.id ?? null;
     const sanitizedSelectedCaseId = isValidCaseId(nextSelectedCaseId)
       ? nextSelectedCaseId
       : sanitizedWorkspace?.currentCase?.id ?? null;
+
+    if (!workspaceBelongsToProfile(sanitizedWorkspace, profileUserId)) {
+      setWorkspaceState(null);
+      setSelectedCaseId(null);
+      setSavedAt(null);
+
+      if (storageKey) {
+        window.localStorage.removeItem(storageKey);
+      }
+      return;
+    }
 
     setWorkspaceState(sanitizedWorkspace);
     setSelectedCaseId(sanitizedSelectedCaseId);
@@ -146,18 +213,23 @@ export function AssessmentWorkspaceProvider({
       const nextSavedAt = new Date().toISOString();
       const payload: PersistedAssessmentWorkspace = {
         workspaceVersion: WORKSPACE_VERSION,
+        ownerKey,
         selectedCaseId: sanitizedSelectedCaseId,
         savedAt: nextSavedAt,
         workspace: sanitizedWorkspace,
       };
 
       setSavedAt(nextSavedAt);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      if (storageKey) {
+        window.localStorage.setItem(storageKey, JSON.stringify(payload));
+      }
       return;
     }
 
     setSavedAt(null);
-    window.localStorage.removeItem(STORAGE_KEY);
+    if (storageKey) {
+      window.localStorage.removeItem(storageKey);
+    }
   }
 
   const value = useMemo<AssessmentWorkspaceContextValue>(
@@ -177,6 +249,7 @@ export function AssessmentWorkspaceProvider({
             situation: payload.latestAssessment.situation_text,
             assessment: payload.latestAssessment,
             analysis: payload.analysis,
+            initialSnapshot: payload.initialSnapshot,
             priorities: payload.priorities,
             roadmap: payload.roadmap,
             resources: keepCachedResources,

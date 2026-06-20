@@ -57,6 +57,28 @@ describe("case service", () => {
       message: "Case not found",
     });
   });
+
+  it("prefers the AI-generated short case title when available", async () => {
+    const caseService = require("../src/services/case.service");
+
+    expect(
+      caseService.buildCaseTitle(
+        { caseTitle: "Rent Support Plan" },
+        "I lost my job and need help with rent.",
+      ),
+    ).toBe("Rent Support Plan");
+  });
+
+  it("falls back to a short compact title when no AI title exists", async () => {
+    const caseService = require("../src/services/case.service");
+
+    expect(
+      caseService.buildCaseTitle(
+        null,
+        "I lost my full-time job six weeks ago and currently need help.",
+      ),
+    ).toBe("I lost my full-time");
+  });
   it("preserves the core case workspace when resource interactions are enabled but the schema is unavailable", async () => {
     process.env.ENABLE_CASE_HISTORY = "true";
     process.env.ENABLE_RESOURCE_INTERACTIONS = "true";

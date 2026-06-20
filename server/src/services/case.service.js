@@ -12,14 +12,34 @@ const {
 const { createHttpError } = require("../utils/http-error");
 const { addTimelineEvent } = require("./timeline.service");
 
-function buildCaseTitle(situation, assessmentId) {
-  const compact = String(situation || "").replace(/\s+/g, " ").trim();
+function buildFallbackCaseTitle(situation) {
+  const compact = String(situation || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (compact) {
-    return compact.slice(0, 80);
+  if (!compact) {
+    return "Support Case";
   }
 
-  return `Crisis case ${assessmentId}`;
+  const words = compact
+    .replace(/[^\w\s-]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return words.join(" ").slice(0, 48) || "Support Case";
+}
+
+function buildCaseTitle(analysis, situation) {
+  const aiTitle = String(analysis?.caseTitle || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (aiTitle) {
+    return aiTitle;
+  }
+
+  return buildFallbackCaseTitle(situation);
 }
 
 function deriveCaseStatus(analysis) {
@@ -55,17 +75,38 @@ async function ensureCaseHistoryAvailable() {
 }
 
 async function createCaseForAssessment({ userId, assessment, situation, analysis }) {
-  const { data: createdCase, error } = await caseRepository.createCase({
+  const casePayload = {
     user_id: userId,
-    title: buildCaseTitle(situation, assessment.id),
+    title: buildCaseTitle(analysis, situation),
     summary: analysis.summary ?? null,
     status: deriveCaseStatus(analysis),
     main_risk: analysis.overallRisk ?? null,
+    initial_stability_score: analysis.stabilityScore ?? null,
     latest_stability_score: analysis.stabilityScore ?? null,
     current_assessment_id: assessment.id,
     last_activity_at:
       assessment.updated_at || assessment.created_at || new Date().toISOString(),
-  });
+  };
+
+  let createdCase;
+  let error;
+  ({ data: createdCase, error } = await caseRepository.createCase(casePayload));
+
+  if (
+    error &&
+    String(error.message || "").toLowerCase().includes("initial_stability_score")
+  ) {
+    ({ data: createdCase, error } = await caseRepository.createCase({
+      user_id: casePayload.user_id,
+      title: casePayload.title,
+      summary: casePayload.summary,
+      status: casePayload.status,
+      main_risk: casePayload.main_risk,
+      latest_stability_score: casePayload.latest_stability_score,
+      current_assessment_id: casePayload.current_assessment_id,
+      last_activity_at: casePayload.last_activity_at,
+    }));
+  }
 
   if (error) {
     throw error;
@@ -214,12 +255,14 @@ async function getCaseWorkspace(caseId, userId) {
     { data: roadmap, error: roadmapError },
     { data: simulations, error: simulationsError },
     { data: resourceInteractions, error: resourceInteractionsError },
+    { data: initialAssessment, error: initialAssessmentError },
   ] = await Promise.all([
     riskRepository.getRiskAssessment(assessment.id),
     priorityRepository.getPrioritiesByAssessmentId(assessment.id),
     roadmapRepository.getRoadmapByAssessmentId(assessment.id),
     simulationRepository.getSimulationsByAssessmentId(assessment.id),
     resourceInteractionsPromise,
+    assessmentRepository.getInitialAssessmentByCaseId(caseRecord.id),
   ]);
 
   if (riskError) {
@@ -240,6 +283,21 @@ async function getCaseWorkspace(caseId, userId) {
 
   if (resourceInteractionsError) {
     throw resourceInteractionsError;
+  }
+
+  if (initialAssessmentError) {
+    throw initialAssessmentError;
+  }
+
+  const initialStabilityScore =
+    caseRecord.initial_stability_score ?? initialAssessment?.stability_score ?? null;
+
+  const { data: initialRiskAnalysis, error: initialRiskError } = initialAssessment
+    ? await riskRepository.getRiskAssessment(initialAssessment.id)
+    : { data: null, error: null };
+
+  if (initialRiskError) {
+    throw initialRiskError;
   }
 
   let comparison = null;
@@ -289,7 +347,26 @@ async function getCaseWorkspace(caseId, userId) {
   }
 
   return {
-    case: caseRecord,
+    case: {
+      ...caseRecord,
+      initial_stability_score:
+        initialStabilityScore !== null ? Number(initialStabilityScore) : null,
+    },
+    initialSnapshot: {
+      assessment: initialAssessment || assessment,
+      analysis: {
+        stabilityScore:
+          initialStabilityScore !== null
+            ? Number(initialStabilityScore)
+            : Number(assessment.stability_score),
+        housingRisk: initialRiskAnalysis?.housing_risk || riskAnalysis?.housing_risk || null,
+        incomeRisk: initialRiskAnalysis?.income_risk || riskAnalysis?.income_risk || null,
+        healthcareRisk:
+          initialRiskAnalysis?.healthcare_risk || riskAnalysis?.healthcare_risk || null,
+        overallRisk: initialRiskAnalysis?.overall_risk || riskAnalysis?.overall_risk || null,
+        summary: "",
+      },
+    },
     latestAssessment: assessment,
     analysis: {
       stabilityScore: Number(assessment.stability_score),
