@@ -25,6 +25,14 @@ if (process.env.NODE_ENV === "production") {
   }));
 }
 
+app.get("/", (_req, res) => {
+  res.status(200).send("Civic Bridge API is running...");
+});
+
+app.get("/favicon.ico", (_req, res) => {
+  res.status(204).end();
+});
+
 app.use("/api/users", userRoutes);
 app.use("/api/cases", caseRoutes);
 app.use("/api/assessments", assessmentRoutes);
