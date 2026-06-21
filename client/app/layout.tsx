@@ -19,6 +19,11 @@ const bodyFont = Inter({
 export const metadata: Metadata = {
   title: "Civic Bridge AI",
   description: "AI-assisted crisis support and stability planning platform.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

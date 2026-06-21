@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CircleDollarSign,
@@ -18,6 +19,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAssessmentWorkspace } from "@/hooks/use-assessment-workspace";
 import { useAuth } from "@/hooks/use-auth";
+import { fetchCaseDetail, fetchCases } from "@/services/case-service";
 import type { RiskLevel } from "@/types/domain";
 
 function normalizeRiskLevel(level: RiskLevel | null): RiskLevel {
@@ -40,21 +42,87 @@ function riskCopy(level: RiskLevel | null, domain: string) {
 
 export default function DashboardPage() {
   const { profile, profileLoading, profileError } = useAuth();
-  const { workspace, workspaceReady } = useAssessmentWorkspace();
+  const { hydrateCaseWorkspace, workspace, workspaceReady } = useAssessmentWorkspace();
+  const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const activeCaseId =
     workspace?.currentCase?.id && workspace.currentCase.id !== "undefined"
       ? workspace.currentCase.id
       : null;
 
-  if (profileLoading || !workspaceReady) {
+  useEffect(() => {
+    if (!workspaceReady || workspace || bootstrapAttempted) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function restoreLatestCaseWorkspace() {
+      setBootstrapLoading(true);
+      setBootstrapError(null);
+
+      try {
+        const casesResponse = await fetchCases({
+          page: 1,
+          limit: 1,
+          archived: false,
+          sort: "updated_desc",
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const latestCase = casesResponse.data.items.find(
+          (item) => item.id && item.id !== "undefined",
+        );
+
+        if (!latestCase?.id) {
+          setBootstrapAttempted(true);
+          return;
+        }
+
+        const detailResponse = await fetchCaseDetail(latestCase.id);
+
+        if (cancelled) {
+          return;
+        }
+
+        hydrateCaseWorkspace(detailResponse.data);
+        setBootstrapAttempted(true);
+      } catch (error) {
+        if (!cancelled) {
+          setBootstrapAttempted(true);
+          setBootstrapError(
+            error instanceof Error
+              ? error.message
+              : "We couldn't reopen your latest case right now.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setBootstrapLoading(false);
+        }
+      }
+    }
+
+    void restoreLatestCaseWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapAttempted, hydrateCaseWorkspace, workspace, workspaceReady]);
+
+  if (profileLoading || !workspaceReady || bootstrapLoading) {
     return <LoadingState title="Loading your dashboard" />;
   }
 
-  if (profileError) {
+  if (profileError || bootstrapError) {
     return (
       <ErrorState
         title="Unable to load your Civic Bridge AI profile"
-        message={profileError}
+        message={profileError || bootstrapError || "We couldn't load your dashboard."}
       />
     );
   }
